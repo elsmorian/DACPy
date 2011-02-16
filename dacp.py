@@ -6,6 +6,7 @@ import string
 import struct
 import re
 import httplib
+import hashlib
 import urllib
 
 import pybonjour
@@ -42,6 +43,8 @@ def decode_txt_record(record):
 def generate_hex_string(bits):
     return hex(random.getrandbits(bits))[2:-1]
 
+def generate_pairing_code(pair, code):
+	return hashlib.md5(pair + ''.join([c + "\x00" for c in code])).hexdigest().upper()
 
 def parse_http_request(request):
     data = request.split('\r\n')
@@ -437,6 +440,7 @@ class DACPRemoteServer(object):
     
     
     def open(self):
+    	self.close()
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.__sock.bind(('', self.__port))
         self.__sock.listen(1)
@@ -584,7 +588,8 @@ class DACPTouchableConnection(object):
     
     
     def send_raw(self, raw):
-        self.__conn.request('GET', '{0}&session-id={1}'.format(raw, self.__mlid), None, {'Viewer-Only-Client': '1'})
+        self.connect()
+        self.__conn.request('GET', str(raw)+'&session-id='+str(self.__mlid), None, {'Viewer-Only-Client': '1'})
         
         respond = self.__conn.getresponse()
         if respond:
@@ -592,6 +597,7 @@ class DACPTouchableConnection(object):
                 return respond.read()
             
             return respond.status
+            
     
     def send_cmd(self, cmd, args={}):
         return self.send_raw('{0}?{1}'.format(cmd, urllib.urlencode(args)))
